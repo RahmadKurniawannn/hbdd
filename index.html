@@ -16,18 +16,16 @@
     color:#fff;
     cursor:none;
     user-select: none;
-    touch-action: none; /* Mencegah layar HP mencoba scroll/zoom saat disentuh */
+    touch-action: none;
   }
 
   :root{--deep:#0d0520;--purple:#4a1080;--pink:#ff69b4;--gold:#ffd700;--lav:#c8b0ff;--rose:#ffb6c1;}
 
-  /* ─── CUSTOM CURSOR ─── */
   #cursor{position:fixed;width:16px;height:16px;border:2px solid rgba(255,215,0,.8);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s,background .15s;box-shadow:0 0 10px rgba(255,215,0,.6);}
   #cursor.hovering{width:24px;height:24px;background:rgba(255,215,0,0.3);border-color:#ff69b4;box-shadow:0 0 15px rgba(255,105,180,.8);}
   .cursor-trail{position:fixed;pointer-events:none;z-index:9998;border-radius:50%;transform:translate(-50%,-50%);animation:trailFade .8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;}
   @keyframes trailFade{0%{opacity:1;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(0.1);}}
 
-  /* ─── INTRO ─── */
   #intro{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;
     background:radial-gradient(ellipse at 50% 40%,rgba(33,8,80,0.95) 0%,rgba(5,0,16,0.98) 80%);transition:opacity 1.5s ease, transform 1.5s ease;}
   #intro.gone{opacity:0;transform:scale(1.1);pointer-events:none;}
@@ -63,10 +61,8 @@
   #enter-btn:hover{transform:scale(1.08) translateY(-3px);box-shadow:0 10px 30px rgba(255,215,0,.8);}
   @keyframes btnGlow{0%,100%{box-shadow:0 0 20px rgba(255,215,0,.5);}50%{box-shadow:0 0 45px rgba(255,215,0,1);}}
 
-  /* ─── CANVAS ─── */
   #mc{position:fixed;inset:0;display:block;}
 
-  /* ─── UI OVERLAY ─── */
   #ui{position:fixed;inset:0;pointer-events:none;z-index:100;opacity:0;transition:opacity 2s ease; transition-delay: 1s;}
   #ui.visible{opacity:1;}
   
@@ -203,7 +199,7 @@
   <div id="stitle">✦ Selamat Ulang Tahun ✦</div>
   <div id="ccount"><span id="litc">Kue Menunggumu 🕯️</span></div>
   <button id="cardbtn" onclick="openCard()">💌 Kartu Ucapan</button>
-  <div id="hint">✦ SPASI — Tiup lilin &nbsp;|&nbsp; Sentuh amplop pink di meja ✦</div>
+  <div id="hint">✦ SPASI — Tiup lilin &nbsp;|&nbsp; Sentuh amplop & bingkai ✦</div>
   <button id="musicbtn" onclick="toggleMusic()" title="Musik">♪</button>
 </div>
 
@@ -320,7 +316,7 @@ function startAmbientMusic() {
   musicOn = true;
 }
 
-function playAmbientTones() {
+function playAmbientTones() { 
   if(!audioCtx) return;
   const masterGain = audioCtx.createGain();
   masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -362,7 +358,7 @@ function toggleMusic() {
 }
 
 // ─────────────────────────────────────────
-//  GENERATORS TEKSTUR REALISTIS (CANVAS)
+//  GENERATORS TEKSTUR REALISTIS
 // ─────────────────────────────────────────
 function createWoodTexture() {
   const c = document.createElement('canvas'); c.width = 512; c.height = 512;
@@ -405,18 +401,17 @@ function createWaxTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-
 // ─────────────────────────────────────────
 //  THREE.JS SCENE UTAMA
 // ─────────────────────────────────────────
 let mainCandle = null; 
 let clock = new THREE.Clock(); 
 
-// Objek Envelope
-let envWrapper, envBody, envEdge, envLight;
-let envState = 'onTable'; 
+let envWrapper, envRotGroup, envLight;
 const envTablePos = new THREE.Vector3(1.5, 2.11, 1.2); 
-const envCameraPos = new THREE.Vector3(0, 3.4, 3.5); 
+
+// ARRAY KHUSUS UNTUK SEMUA OBJEK YANG BISA DIKLIK (Amplop & Semua Bingkai)
+const interactables = []; 
 
 function initScene() {
   const canvas = document.getElementById('mc');
@@ -467,10 +462,8 @@ function initScene() {
   const skybox = new THREE.Mesh(skyGeo, skyMat);
   scene.add(skybox);
 
-
   // ── 2. MEJA ──
   const tableGroup = new THREE.Group();
-  
   const woodMat = new THREE.MeshStandardMaterial({ map: createWoodTexture(), roughness: 0.8, metalness: 0.1 });
   const clothMat = new THREE.MeshStandardMaterial({ map: createClothTexture(), roughness: 1.0, metalness: 0.0 }); 
   const goldTrim = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.3 });
@@ -488,8 +481,7 @@ function initScene() {
   });
   scene.add(tableGroup);
 
-
-  // ── 3. LOAD KUE ──
+  // ── 3. LOAD KUE & LILIN ──
   const gltfLoader = new THREE.GLTFLoader(); 
   const cakeWrapper = new THREE.Group();
   cakeWrapper.position.set(0, 2.4, 0.5); 
@@ -543,10 +535,20 @@ function initScene() {
     cakeWrapper.add(object);
     setupCandle();
   }, undefined, (error) => {
-    console.log("Menggunakan kue bawaan.");
     setupCandle(); 
   });
 
+  // ── 3.5 LOAD BONEKA TEDDY BEAR (SEBELAH KIRI) ──
+  gltfLoader.load('teddybear.glb', (gltf) => {
+    const teddy = gltf.scene;
+    teddy.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+    teddy.position.set(-1.8, 2.1, 0.5);
+    teddy.rotation.y = Math.PI / 4; 
+    teddy.scale.set(0.4, 0.4, 0.4); 
+    scene.add(teddy);
+  });
 
   // ── 4. BINGKAI FOTO MENGAMBANG ──
   const frameData = [
@@ -560,7 +562,7 @@ function initScene() {
   frameData.forEach((fd, i) => {
     const grp = new THREE.Group();
     const fBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.2, 0.08), goldTrim);
-    fBody.position.y = 0.6; fBody.castShadow = true; fBody.userData.isFrame = true;
+    fBody.position.y = 0.6; fBody.castShadow = true; 
     grp.add(fBody);
 
     const tc = document.createElement('canvas'); tc.width=256; tc.height=300;
@@ -572,11 +574,10 @@ function initScene() {
 
     const fPhoto = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.0), new THREE.MeshBasicMaterial({map: new THREE.CanvasTexture(tc)}));
     fPhoto.position.set(0, 0.6, 0.041); 
-    fPhoto.userData.isFrame = true;
     grp.add(fPhoto);
 
     const fStand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.6, 0.3), woodMat);
-    fStand.position.set(0, 0.3, -0.15); fStand.rotation.x = 0.3; fStand.userData.isFrame = true;
+    fStand.position.set(0, 0.3, -0.15); fStand.rotation.x = 0.3; 
     grp.add(fStand);
 
     grp.position.set(fd.x, 2.1, fd.z); 
@@ -589,40 +590,51 @@ function initScene() {
     hoverLight.position.set(0, 0.6, 0.8);
     grp.add(hoverLight);
 
+    // [PERBAIKAN] Buat kotak deteksi raksasa tak terlihat untuk bingkai ini
+    const frameHitbox = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 1.8, 0.6), 
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }) 
+    );
+    frameHitbox.position.y = 0.6; // Sesuaikan tinggi hitbox
+    frameHitbox.userData = { type: 'frame', data: fd };
+    grp.add(frameHitbox);
+    interactables.push(frameHitbox); // Masukkan ke array interaksi
+
     scene.add(grp);
     frames.push({ grp, data: fd, light: hoverLight });
   });
 
-  // ── 5. AMPLOP SURAT (ENVELOPE) - SUDAH DIPERBAIKI ──
+  // ── 5. AMPLOP SURAT (ENVELOPE) - TANPA ANIMASI TERBANG ──
   envWrapper = new THREE.Group();
   envWrapper.position.copy(envTablePos); 
   scene.add(envWrapper);
 
-  const envRotGroup = new THREE.Group(); 
+  envRotGroup = new THREE.Group(); 
   envRotGroup.rotation.x = -Math.PI / 2; 
   envWrapper.add(envRotGroup);
 
-  envBody = new THREE.Mesh(
+  const envBody = new THREE.Mesh(
     new THREE.PlaneGeometry(0.7, 0.5), 
-    new THREE.MeshStandardMaterial({ color:0xFFC1CC, roughness:0.6, transparent: true, opacity: 1, side: THREE.DoubleSide })
+    new THREE.MeshStandardMaterial({ color:0xFFC1CC, roughness:0.6, side: THREE.DoubleSide })
   ); 
   envBody.receiveShadow = true; envBody.castShadow = true;
   envRotGroup.add(envBody);
 
-  envEdge = new THREE.LineSegments(
+  const envEdge = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.7, 0.5)),
-    new THREE.LineBasicMaterial({color:0xffffff, linewidth: 2, transparent: true, opacity: 1})
+    new THREE.LineBasicMaterial({color:0xffffff, linewidth: 2})
   );
   envRotGroup.add(envEdge);
 
-  // [PERBAIKAN: HITBOX / KOTAK DETEKSI BENTURAN]
-  // Membuat hitbox transparan namun jauh lebih tebal agar sangat mudah diklik baik di HP maupun PC
+  // [PERBAIKAN] Hitbox Raksasa untuk Amplop
   const envHitbox = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 0.7, 0.25), 
-    new THREE.MeshBasicMaterial({ visible: false }) 
+    new THREE.BoxGeometry(3.0, 2.5, 1.0), 
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }) 
   );
-  envHitbox.position.z = 0.1; // Sedikit diangkat
+  envHitbox.position.z = 0.2; 
+  envHitbox.userData = { type: 'envelope' };
   envRotGroup.add(envHitbox);
+  interactables.push(envHitbox); // Masukkan ke array interaksi
 
   envLight = new THREE.PointLight(0xff69b4, 0.8, 3);
   envLight.position.set(0, 0, 0.2);
@@ -680,11 +692,11 @@ function initScene() {
     scene.add(g); activeSparkles.push({g,pts});
   }
 
-  // ── CAMERA & RAYCASTING (PERBAIKAN EVENT) ──
+  // ── CAMERA & RAYCASTING (SISTEM DETEKSI BARU) ──
   let targetLookX = 0; let targetLookY = 2.6; 
   const camTarget = new THREE.Vector3(0, 2.6, 0); 
   const mouse = new THREE.Vector2(-999, -999); 
-  const raycaster=new THREE.Raycaster();
+  const raycaster = new THREE.Raycaster();
 
   window.addEventListener('pointermove', e => {
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1; 
@@ -693,35 +705,30 @@ function initScene() {
     targetLookY = Math.max(2.0, 2.6 + (mouse.y * 1.5));
   });
 
-  // [PERBAIKAN: INTERAKSI KLIK LEBIH AKURAT]
+  // [PERBAIKAN] Event klik mengecek array interactables yang sudah terpusat
   window.addEventListener('pointerdown', (e) => {
+    // Jangan lakukan raycast jika yang diklik adalah tombol/UI
     if(e.target.tagName === 'BUTTON' || e.target.closest('#msgmod') || e.target.closest('#cardmod') || e.target.closest('#pmod') || !sceneReady) return;
     
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     
-    // 1. Cek Amplop Terlebih Dahulu (Menggunakan .children dan nilai `true` untuk mengecek hitbox)
-    if(envState === 'onTable') {
-      const hitsEnv = raycaster.intersectObjects(envWrapper.children, true);
-      if(hitsEnv.length > 0) {
-        takeEnvelope();
+    // Cek semua objek yang punya hitbox tak terlihat
+    const hits = raycaster.intersectObjects(interactables, false);
+    
+    if(hits.length > 0) {
+      const hitObj = hits[0].object;
+      
+      if (hitObj.userData.type === 'envelope') {
+        openEnvelopeDirect();
         createClickRipple(e.clientX, e.clientY);
-        return; 
+      } 
+      else if (hitObj.userData.type === 'frame') {
+        openPhoto(hitObj.userData.data);
+        createClickRipple(e.clientX, e.clientY);
       }
     }
-
-    // 2. Cek Bingkai Foto
-    let photoClicked = false;
-    frames.forEach(frame => {
-      if(photoClicked) return;
-      const hits = raycaster.intersectObjects(frame.grp.children, true);
-      if(hits.length > 0) {
-        openPhoto(frame.data);
-        createClickRipple(e.clientX, e.clientY);
-        photoClicked = true;
-      }
-    });
   });
 
   function createClickRipple(x, y) {
@@ -778,7 +785,6 @@ function initScene() {
   function animate(){
     requestAnimationFrame(animate);
     const t = clock.getElapsedTime(); 
-    const dt = clock.getDelta(); 
 
     if(introTime < 1.0) {
         introTime += 0.01;
@@ -789,20 +795,7 @@ function initScene() {
     camTarget.y += (targetLookY - camTarget.y) * 0.05;
     camera.lookAt(camTarget.x, camTarget.y, 0); 
 
-    raycaster.setFromCamera(mouse, camera);
-    let isHovering = false;
-
-    frames.forEach((frame, i) => {
-      frame.grp.position.y = frame.grp.userData.baseY + Math.sin(t * frame.grp.userData.floatSpeed + i) * 0.06;
-      const hits = raycaster.intersectObjects(frame.grp.children, true);
-      if(hits.length > 0) {
-          frame.light.intensity = 1.5;
-          isHovering = true;
-      } else {
-          frame.light.intensity = THREE.MathUtils.lerp(frame.light.intensity, 0, 0.1);
-      }
-    });
-
+    // Animasi Nyala Lilin
     if(mainCandle && mainCandle.lit){
       const f=1+.15*Math.sin(t*15)+.1*Math.sin(t*23);
       mainCandle.light.intensity=1.5*f;
@@ -810,40 +803,42 @@ function initScene() {
       mainCandle.flame.material.opacity=.85+.15*Math.sin(t*18);
     }
 
-    // Animasi Amplop
-    if(envState === 'onTable') {
-      envWrapper.position.y = envTablePos.y + Math.sin(t * 2.5) * 0.05 + 0.05; 
-      envRotGroup.rotation.z = Math.sin(t * 1.5) * 0.05;
-      envLight.intensity = 0.8 + Math.sin(t * 4) * 0.4; 
+    // Animasi naik-turun Amplop di meja
+    envWrapper.position.y = envTablePos.y + Math.sin(t * 2.5) * 0.05 + 0.05; 
+    envRotGroup.rotation.z = Math.sin(t * 1.5) * 0.05;
+    envLight.intensity = 0.8 + Math.sin(t * 4) * 0.4; 
 
-      // Cek Hover Menggunakan Hitbox Baru
-      const hitsEnv = raycaster.intersectObjects(envWrapper.children, true);
-      if(hitsEnv.length > 0) isHovering = true;
+    // Animasi naik-turun Bingkai
+    frames.forEach((frame, i) => {
+      frame.grp.position.y = frame.grp.userData.baseY + Math.sin(t * frame.grp.userData.floatSpeed + i) * 0.06;
+      frame.light.intensity = THREE.MathUtils.lerp(frame.light.intensity, 0, 0.1); // Reset lampu bingkai
+    });
 
-    } else if(envState === 'taking') {
-      envWrapper.position.lerp(envCameraPos, 0.06); 
-      envRotGroup.rotation.x = THREE.MathUtils.lerp(envRotGroup.rotation.x, -Math.PI / 8, 0.06);
-      envRotGroup.rotation.z = THREE.MathUtils.lerp(envRotGroup.rotation.z, 0, 0.06);
-      const targetScale = 1.5;
-      envWrapper.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.06);
-
-      if(envWrapper.position.distanceTo(envCameraPos) < 0.2) {
-        envState = 'opened';
-        openEnvelopeVisual();
+    // Deteksi Hover untuk kursor dan nyala lampu bingkai
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(interactables, false);
+    let isHovering = false;
+    
+    if(hits.length > 0) {
+      isHovering = true;
+      const hitObj = hits[0].object;
+      if(hitObj.userData.type === 'frame') {
+         // Nyalakan lampu bingkai yang sedang di-hover
+         const frameRef = frames.find(f => f.data.label === hitObj.userData.data.label);
+         if(frameRef) frameRef.light.intensity = 1.5;
       }
     }
 
     if(isHovering) curEl.classList.add('hovering');
     else curEl.classList.remove('hovering');
 
+    // Sistem Partikel
     const fd=fdust.geometry.attributes.position.array; 
     for(let i=0;i<fdCount;i++){
       const i3=i*3; 
       fdAngle[i] += fdSpeed[i] * 0.01; 
       fdYBase[i] += 0.01; 
-      
       if(fdYBase[i] > 10) { fdYBase[i] = 0; fdAngle[i] = Math.random()*Math.PI*2; } 
-
       const r = fdBaseRadius[i] + Math.sin(t + i)*0.5; 
       fd[i3] = Math.cos(fdAngle[i]) * r; 
       fd[i3+1] = fdYBase[i] + Math.sin(t * 2 + i)*0.2; 
@@ -851,6 +846,7 @@ function initScene() {
     }
     fdust.geometry.attributes.position.needsUpdate=true;
 
+    // Sistem Sparkle
     for(let i=activeSparkles.length-1;i>=0;i--){
       const sp=activeSparkles[i]; let done=true;
       sp.pts.forEach(p=>{
@@ -872,45 +868,14 @@ function initScene() {
 // ─────────────────────────────────────────
 //  FUNGSI AMPLOP & MODAL
 // ─────────────────────────────────────────
-function takeEnvelope() {
-  bellSound();
-  showFTxt('Membuka Keajaiban... ✨', envTablePos.x, envTablePos.y + 0.5, envTablePos.z);
-  envState = 'taking';
-  envLight.intensity = 2; 
-}
-
-function openEnvelopeVisual() {
-  let scale = 1.5;
-  let opacity = 1;
-  const openAnim = setInterval(() => {
-    scale += 0.08;
-    opacity -= 0.05;
-    envWrapper.scale.set(scale, scale, scale);
-    envBody.material.opacity = opacity;
-    envEdge.material.opacity = opacity;
-    envLight.intensity = opacity * 2;
-
-    if(opacity <= 0) {
-      clearInterval(openAnim);
-      envWrapper.visible = false;
-      setTimeout(() => {
-         document.getElementById('msgmod').classList.add('open');
-      }, 200);
-    }
-  }, 30); 
+// Fungsi ini sekarang langsung membuka surat (tanpa animasi terbang)
+function openEnvelopeDirect() {
+  document.getElementById('msgmod').classList.add('open');
+  showFTxt('Surat Terbuka ✨', envTablePos.x, envTablePos.y + 1.0, envTablePos.z);
 }
 
 function closeMsg() {
    document.getElementById('msgmod').classList.remove('open');
-   setTimeout(() => {
-      envState = 'onTable';
-      envWrapper.position.copy(envTablePos);
-      envWrapper.scale.set(1, 1, 1);
-      envRotGroup.rotation.set(-Math.PI/2, 0, 0);
-      envBody.material.opacity = 1;
-      envEdge.material.opacity = 1;
-      envWrapper.visible = true;
-   }, 1000);
 }
 
 // ─────────────────────────────────────────
